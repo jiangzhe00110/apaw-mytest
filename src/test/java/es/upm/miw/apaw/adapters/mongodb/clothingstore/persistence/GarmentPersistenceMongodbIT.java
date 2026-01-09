@@ -28,7 +28,7 @@ class GarmentPersistenceMongodbIT {
     @Autowired
     private clothingstoreSeeder clothingstoreSeeder;
 
-    private static final UUID KNOWN_USER_ID = UUID.fromString("aaaaaaaa-bbbb-cccc-dddd-eeeeffff0000");
+    private static final String KNOWN_MOBILE = "666000660";
     private static final String KNOWN_INVOICE_NUMBER = "INV-2025-001";
     private static final UUID   G1_ID = UUID.fromString("aaaaaaaa-bbbb-cccc-dddd-eeeeffff7001");
     private static final UUID   G2_ID = UUID.fromString("aaaaaaaa-bbbb-cccc-dddd-eeeeffff7002");
@@ -106,8 +106,9 @@ class GarmentPersistenceMongodbIT {
     }
 
     @Test
-    void testSumDistinctPriceByUserId_ok() {
-        BigDecimal result = garmentPersistenceMongodb.sumDistinctPriceByUserId(KNOWN_USER_ID);
+    void testSumDistinctPriceByMobile_ok() {
+        BigDecimal result = garmentPersistenceMongodb.sumDistinctPriceByMobile(KNOWN_MOBILE);
+        System.out.println(">>> Persistence sumDistinctPriceByMobile(" + KNOWN_MOBILE + ") = " + result);
 
         //  59.99 + 89.99 = 149.98
         assertThat(result).isEqualByComparingTo("149.98");
@@ -122,5 +123,3 @@ class GarmentPersistenceMongodbIT {
         assertThat(ids).containsExactlyInAnyOrder(G1_ID, G2_ID);
     }
 }
-
-

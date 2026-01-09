@@ -41,13 +41,14 @@ class GarmentResourceFT {
     private static final String SUM_PRICE_SEARCH_PATH = GarmentResource.GARMENTS + "/search/sum-price";
     private static final String DISTINCT_IDS_SEARCH_PATH = GarmentResource.GARMENTS + "/search/distinct-ids";
 
-    private static final String KNOWN_MOBILE = "666000660";
+    private static final String KNOWN_MOBILE   = "666000660";
     private static final String UNKNOWN_MOBILE = "999999999";
-    private static final UUID SEEDED_USER_ID = UUID.fromString("aaaaaaaa-bbbb-cccc-dddd-eeeeffff0000");
+    private static final UUID   SEEDED_USER_ID = UUID.fromString("aaaaaaaa-bbbb-cccc-dddd-eeeeffff0000");
 
+    // 与 clothingstoreSeeder 一致
     private static final String KNOWN_INVOICE_NUMBER = "INV-2025-001";
-    private static final UUID G1_ID = UUID.fromString("aaaaaaaa-bbbb-cccc-dddd-eeeeffff7001");
-    private static final UUID G2_ID = UUID.fromString("aaaaaaaa-bbbb-cccc-dddd-eeeeffff7002");
+    private static final UUID   G1_ID = UUID.fromString("aaaaaaaa-bbbb-cccc-dddd-eeeeffff7001");
+    private static final UUID   G2_ID = UUID.fromString("aaaaaaaa-bbbb-cccc-dddd-eeeeffff7002");
 
     @BeforeEach
     void resetDb() {
@@ -151,7 +152,7 @@ class GarmentResourceFT {
         List<Garment> query = this.webTestClient.get()
                 .uri(uriBuilder -> uriBuilder
                         .path(GarmentResource.GARMENTS)
-                        .queryParam("min", "0").queryParam("max", "20").build())
+                        .queryParam("min","0").queryParam("max","20").build())
                 .exchange()
                 .expectStatus().isOk()
                 .expectBodyList(Garment.class)
@@ -198,18 +199,18 @@ class GarmentResourceFT {
 
     @Test
     void testSumDistinctPriceByMobile_ok() {
-        GarmentResource.SumDto response = this.webTestClient.get()
+        BigDecimal total = this.webTestClient.get()
                 .uri(uri -> uri.path(SUM_PRICE_SEARCH_PATH)
                         .queryParam("mobile", KNOWN_MOBILE)
                         .build())
                 .exchange()
                 .expectStatus().isOk()
-                .expectBody(GarmentResource.SumDto.class)
+                .expectBody(BigDecimal.class)
                 .returnResult()
                 .getResponseBody();
 
-        assertThat(response).isNotNull();
-        assertThat(response.sum()).isEqualByComparingTo("149.98"); // 59.99 + 89.99
+        assertThat(total).isNotNull();
+        assertThat(total).isEqualByComparingTo("149.98"); // 59.99 + 89.99
     }
 
     @Test
@@ -224,18 +225,21 @@ class GarmentResourceFT {
 
     @Test
     void testFindDistinctIdsByInvoiceNumber_ok() {
-        GarmentResource.GarmentIdsDto response = this.webTestClient.get()
+        List<UUID> ids = this.webTestClient.get()
                 .uri(uri -> uri.path(DISTINCT_IDS_SEARCH_PATH)
-                        .queryParam("number", KNOWN_INVOICE_NUMBER)
+                        .queryParam("number", KNOWN_INVOICE_NUMBER) // 参数名必须是 number
                         .build())
                 .exchange()
                 .expectStatus().isOk()
-                .expectBody(GarmentResource.GarmentIdsDto.class)
+                .expectBodyList(UUID.class)
                 .returnResult()
                 .getResponseBody();
 
-        assertThat(response).isNotNull();
-        assertThat(Set.copyOf(response.ids()))
+        assertThat(ids).isNotNull();
+        assertThat(Set.copyOf(ids))
                 .containsExactlyInAnyOrder(G1_ID, G2_ID);
     }
 }
+
+
+

@@ -1,40 +1,37 @@
-
 package es.upm.miw.apaw.adapters.mongodb.clothingstore.persistence;
 
 import es.upm.miw.apaw.adapters.mongodb.clothingstore.daos.GarmentRepository;
-import es.upm.miw.apaw.adapters.mongodb.clothingstore.daos.StoreRepository;
+import es.upm.miw.apaw.adapters.mongodb.clothingstore.daos.OrderRepository;
 import es.upm.miw.apaw.adapters.mongodb.clothingstore.entities.GarmentEntity;
 import es.upm.miw.apaw.domain.exceptions.NotFoundException;
 import es.upm.miw.apaw.domain.models.clothingstore.Garment;
 import es.upm.miw.apaw.domain.persistenceports.clothingstore.GarmentPersistence;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Repository;
-
+import org.bson.types.Decimal128;
 
 import java.math.BigDecimal;
-import java.util.*;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 import java.util.UUID;
-import java.util.Optional;
-import java.util.*;
-
+import java.util.stream.Stream;
 
 @Repository
 public class GarmentPersistenceMongodb implements GarmentPersistence {
 
     private final GarmentRepository garmentRepository;
-    private final StoreRepository storeRepository;
+    private final OrderRepository orderRepository;
+    private final MongoTemplate mongoTemplate;
 
     @Autowired
     public GarmentPersistenceMongodb(GarmentRepository garmentRepository,
-                                     StoreRepository storeRepository
-    ) {
+                                     OrderRepository orderRepository,
+                                     MongoTemplate mongoTemplate) {
         this.garmentRepository = garmentRepository;
-        this.storeRepository = storeRepository;
+        this.orderRepository = orderRepository;
+        this.mongoTemplate = mongoTemplate;
     }
 
     @Override
@@ -46,15 +43,12 @@ public class GarmentPersistenceMongodb implements GarmentPersistence {
 
     @Override
     public Stream<Garment> findByPriceBetween(BigDecimal min, BigDecimal max) {
-        List<GarmentEntity> list = this.garmentRepository.findByPriceBetween(min, max);
-        if (list.isEmpty()) {
-            list = this.garmentRepository.findAll().stream()
-                    .filter(e -> e.getPrice() != null
-                            && e.getPrice().compareTo(min) >= 0
-                            && e.getPrice().compareTo(max) <= 0)
-                    .toList();
-        }
-        return list.stream().map(GarmentEntity::toGarment);
+        Query query = new Query(Criteria.where("price")
+                .gte(new Decimal128(min))
+                .lte(new Decimal128(max)));
+        return this.mongoTemplate.find(query, GarmentEntity.class)
+                .stream()
+                .map(GarmentEntity::toGarment);
     }
 
     @Override
@@ -80,65 +74,31 @@ public class GarmentPersistenceMongodb implements GarmentPersistence {
         }
         this.garmentRepository.deleteById(id);
     }
+
     @Override
-    public BigDecimal sumDistinctPriceByMobile(String mobile) {
-        if (mobile == null || mobile.isBlank()) {
+    public BigDecimal sumDistinctPriceByUserId(UUID userId) {
+        if (userId == null) {
             return BigDecimal.ZERO;
         }
 
-        // 查找与 userId 关联的订单中的所有 Garment 去重
-        Set<UUID> garmentIds = new HashSet<>();
-        this.storeRepository.findAll().forEach(store -> {
-            if (store.getOrders() != null) {
-                store.getOrders().forEach(order -> {
-                    // 这里假设 mobile 已经在 service 层解析为 userId，这里可直接匹配 userId
-                    if (order.getUserId() != null && order.getGarments() != null) {
-                        order.getGarments().forEach(g -> garmentIds.add(g.getId()));
-                    }
-                });
-            }
-        });
-
-        if (garmentIds.isEmpty()) return BigDecimal.ZERO;
-
-        return garmentIds.stream()
-                .map(this.garmentRepository::findById)
-                .flatMap(Optional::stream)
+        return this.orderRepository.findByUserId(userId).stream()
+                .filter(order -> order.getGarments() != null)
+                .flatMap(order -> order.getGarments().stream())
+                .filter(Objects::nonNull)
+                .filter(garment -> garment.getId() != null)
+                .distinct()
                 .map(GarmentEntity::getPrice)
                 .filter(Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
-//    private Stream<Garment> findDistinctByUserId(UUID userId) {
-//        if (userId == null) return Stream.empty();
-//
-//        Set<UUID> ids = this.storeRepository.findAll().stream()
-//                .filter(s -> s.getOrders() != null)
-//                .flatMap(s -> s.getOrders().stream())
-//                .filter(o -> userId.equals(o.getUserId()) && o.getGarments() != null)
-//                .flatMap(o -> o.getGarments().stream())
-//                .map(GarmentEntity::getId)
-//                .filter(Objects::nonNull)
-//                .collect(Collectors.toCollection(LinkedHashSet::new));
-//
-//        if (ids.isEmpty()) return Stream.empty();
-//
-//        return ids.stream()
-//                .map(this.garmentRepository::findById)
-//                .flatMap(Optional::stream)
-//                .map(GarmentEntity::toGarment);
-//    }
 
     @Override
-    public Stream<UUID> findDistinctIdsByInvoiceNumber(String invoiceNumber) {
+    public Stream<UUID> findDistinctGarmentIdsByInvoiceNumber(String invoiceNumber) {
         if (invoiceNumber == null || invoiceNumber.isBlank()) return Stream.empty();
 
-        return this.storeRepository.findAll().stream()
-                .filter(s -> s.getOrders() != null)
-                .flatMap(s -> s.getOrders().stream())
-                .filter(o -> o.getInvoice() != null
-                        && invoiceNumber.equals(o.getInvoice().getNumber())
-                        && o.getGarments() != null)
-                .flatMap(o -> o.getGarments().stream())
+        return this.orderRepository.findByInvoiceId(invoiceNumber).stream()
+                .filter(order -> order.getGarments() != null)
+                .flatMap(order -> order.getGarments().stream())
                 .map(GarmentEntity::getId)
                 .filter(Objects::nonNull)
                 .distinct();

@@ -1,12 +1,9 @@
 package es.upm.miw.apaw.domain.services.clothingstore;
 
-
 import es.upm.miw.apaw.domain.models.UserDto;
-
 import es.upm.miw.apaw.domain.models.clothingstore.Garment;
 import es.upm.miw.apaw.domain.persistenceports.clothingstore.GarmentPersistence;
 import es.upm.miw.apaw.domain.restclients.UserRestClient;
-import es.upm.miw.apaw.domain.services.clothingstore.GarmentService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -85,13 +82,13 @@ class GarmentServiceTest {
                 .build();
         given(userRestClient.readByMobile(mobile)).willReturn(user);
 
-        given(garmentPersistence.sumDistinctPriceByMobile(mobile))
+        given(garmentPersistence.sumDistinctPriceByUserId(userId))
                 .willReturn(expectedTotal);
 
         BigDecimal total = garmentService.sumDistinctPriceByMobile(mobile);
 
         assertThat(total).isEqualByComparingTo(expectedTotal);
-        System.out.println(">>> testSumDistinctPriceByMobile(" + mobile + ") = " + total);
     }
 
 }
+
